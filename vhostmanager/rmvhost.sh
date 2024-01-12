@@ -17,11 +17,12 @@ fi
 
 
 hosts_file="/etc/hosts"
+vhost_root="/var/www/"
 available_sites_path=""
 web_service="apache2"
 
 conf_file_path=0
-vhost_dir=0
+vhost_folder=0
 # web_user="www-data"
 
 
@@ -52,13 +53,17 @@ case "${web_service}" in
 	apache2)
 		available_sites_path="/etc/apache2/sites-available/"
 		conf_file_path=$available_sites_path$site_url.conf
-		vhost_dir=$(sed -n "/<Directory.*/p" $conf_file_path | sed 's/<Directory//g' | sed 's/>//g' | sed 's/ *$//g;q')
+		# vhost_folder=$(sed -n "/<Directory.*/p" $conf_file_path | sed 's/<Directory//g' | sed 's/>//g' | sed 's/ *$//g;q')
+		vhost_folder=$(sed -n "/<Directory.*/p" $conf_file_path | sed 's/<Directory//g' | sed 's/>//g' | sed 's/ *$//g' | sed 's/\/var\/www\///g' | sed 's/\/.*//g;q')
+		vhost_folder=$(echo $vhost_folder | tr -d '\t')/
 		;;
 	nginx)
 		available_sites_path="/etc/nginx/sites-available/"
 		enabled_sites_path="/etc/nginx/sites-enabled/"
 		conf_file_path=$available_sites_path$site_url
-		vhost_dir=$(sed -n "/root\s*.*\;$/p" $conf_file_path  | sed 's/;//g' | sed 's/root//g' | sed 's/;//g' | sed 's/ *$//g;q')
+		vhost_folder=$(sed -n "/root\s*.*\;$/p" $conf_file_path  | sed 's/;//g' | sed 's/root//g' | sed 's/;//g' | sed 's/ *$//g' | sed 's/\/var\/www\///g' | sed 's/\/.*//g;q')
+		# vhost_folder=$(sed -n "/root\s*.*\;$/p" $conf_file_path  | sed 's/;//g' | sed 's/root//g' | sed 's/;//g' | sed 's/ *$//g;q')
+		vhost_folder=$(echo $vhost_folder | tr -d '\t')/
 		;;
 esac
 
@@ -71,10 +76,8 @@ echo "site: " $site_url
 
 # Getting site info
 
-
-
-if [ $vhost_dir == 0 ]; then
-	echo "Directory not found for " $site_url ". Nothing has changed."
+if [ $vhost_folder == 0 ]; then
+	echo "Directory in config file not found for " $site_url ". Nothing has changed."
     exit 1
 fi
 
@@ -92,19 +95,25 @@ esac
 
 
 # Deleting folder
-echo "Deleting folder " $vhost_dir
-echo `rm -R $vhost_dir`
+
+echo "Checking if $vhost_root$vhost_folder exists..."
+if [[ ! -z "$vhost_folder" ]] && [[ $vhost_folder != "/" ]] && [[ -d "$vhost_root$vhost_folder" ]]; then
+	echo "Deleting folder " $vhost_root$vhost_folder
+	`rm -R $vhost_root$vhost_folder`
+else
+	echo "Folder is already removed. Nothing to delete."
+fi
 
 # Deleting conf file from available vhosts
 echo "Deleting file " $conf_file_path
-echo `rm $conf_file_path`
+`rm $conf_file_path`
 
 # update hosts file
+`sed  -i "/.*$site_url/d" $hosts_file`
 echo "Updated the hosts file"
-echo `sed  -i "/.*$site_url/d" $hosts_file`
 
 echo "Restarting $web_service..."
-echo `/etc/init.d/$web_service restart`
+`/etc/init.d/$web_service restart`
 
 echo "Process complete, $site_url has been removed."
 

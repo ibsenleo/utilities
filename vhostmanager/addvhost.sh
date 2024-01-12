@@ -12,7 +12,7 @@ Help()
    echo "Syntax: addvhost [-u|d|t|p|h]"
    echo "options:"
    echo "-u     Url for the virtualhost."
-   echo "-d     Directory under the web server root."
+   echo "-d     Relative path under the web server root. (without trailing slash)"
    echo "-t     Template to use to fill .conf file. Default ./vhost.template.conf"
    echo "-p     PHP version for the php fastCGI. Default 8.2."
    echo "-s     Web service running. Default apache2."
@@ -50,8 +50,9 @@ enabled_sites_path=""
 site_url=0
 relative_doc_root=0
 php_version=0
+create_index=0
 
-while getopts ":u:d:t:p:s:h" o; do
+while getopts ":u:d:t:p:s:ih" o; do
 	case "${o}" in
 		u)
 			#site domain name
@@ -70,6 +71,9 @@ while getopts ":u:d:t:p:s:h" o; do
 			;;
 		s)
 			web_service=${OPTARG}
+			;;
+		i)
+			create_index=1
 			;;
 		h)
 			Help
@@ -124,6 +128,8 @@ if [ $relative_doc_root == 0 ]; then
 	# read -p "Please enter the site path relative to the web root: $web_root_path" relative_doc_root
 	echo "Web root set to $web_root$site_url"
 	relative_doc_root=$site_url
+else
+	relative_doc_root=${relative_doc_root#/}
 fi
 
 if [ $php_version == 0 ]; then
@@ -139,15 +145,19 @@ absolute_doc_root=$web_root$relative_doc_root
 if [ ! -d "$absolute_doc_root" ]; then
 
 	# create directory
-	`mkdir "$absolute_doc_root/"`
+	`mkdir -p "$absolute_doc_root/"`
 	`chown -R $SUDO_USER:$web_user "$absolute_doc_root/"`
 
 	# create index file
-	indexfile="$absolute_doc_root/index.php"
-	`touch "$indexfile"`
-	echo "<html><head></head><body>Welcome!</body></html>" >> "$indexfile"
+	if [ $create_index == 1 ]; then
+		indexfile="$absolute_doc_root/index.php"
+		`touch "$indexfile"`
+		echo "<html><head></head><body>Welcome!</body></html>" >> "$indexfile"
+	fi
 
 	echo "Created directory $absolute_doc_root/"
+else 
+	echo "Directory already exist."
 fi
 
 
