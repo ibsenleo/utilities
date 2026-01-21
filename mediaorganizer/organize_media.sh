@@ -28,14 +28,14 @@ mkdir -p "$OUTPUT_DIR"
 pattern=""
 
 for ext in $IMAGE_EXTS $VIDEO_EXTS; do
-    pattern="$pattern -o -iname *.$ext"
+    pattern="$pattern -o -iname \"*.$ext\""
 done
 
 # Remove leading ' -o '
 pattern="${pattern# -o }"
 
 # Process files
-find "$INPUT_DIR" -type f \( $pattern \) | while read -r file; do
+eval "find \"$INPUT_DIR\" -type f \( $pattern \)" | while read -r file; do
     
     # Get file date
     if [[ "$OSTYPE" == "darwin"* ]]; then
